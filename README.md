@@ -53,7 +53,7 @@ If PowerShell refuses to run scripts: `powershell -ExecutionPolicy Bypass -File 
 ## Known limits
 
 - OpenCASCADE's STEP import is the slow part. A 15 MB, 211-part assembly took about 16 s on a 2-core test machine (12 s of it in OCCT's transfer step). Explorer renders thumbnails in the background and caches them, so this is a one-time cost per file, but it wants tuning.
-- If the Store app "STEP Explorer Preview" is installed, Windows uses its thumbnail handler for `.step`, `.stp` and `.p21` instead of sideSTEP's, because handlers from packaged apps take priority over classic registry ones. Uninstall that app to get sideSTEP thumbnails. `scriptsegister.ps1` warns when it finds it.
+- If the Store app "STEP Explorer Preview" is installed, Windows uses its thumbnail handler for `.step`, `.stp` and `.p21` instead of sideSTEP's, because handlers from packaged apps take priority over classic registry ones. Uninstall that app to get sideSTEP thumbnails. `scripts\register.ps1` warns when it finds it.
 - The sample files take about 0.1 s each to thumbnail (0.2 s through Explorer, including host start-up).
 - Thumbnails are meshed on one thread. OpenCASCADE's parallel mesher leaves a thread pool behind that hangs the host process at exit when used from a DLL.
 - Files over 400 MB are skipped.

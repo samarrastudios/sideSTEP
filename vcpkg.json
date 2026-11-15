@@ -1,0 +1,7 @@
+{
+  "name": "sidestep",
+  "version-string": "0.1.0",
+  "dependencies": [
+    { "name": "opencascade", "default-features": false }
+  ]
+}

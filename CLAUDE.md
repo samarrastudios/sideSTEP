@@ -29,7 +29,12 @@ Windows utility: STEP/STP files get real thumbnails in File Explorer, and (next)
 2. Performance: OCCT transfer dominates on large files. Ideas: skip shape healing params, cap by file size with a cheaper fallback, cache meshes on disk keyed by file hash. Not yet measured on Windows with a large assembly.
 3. Catch structured exceptions (access violations inside OCCT) so a bad file cannot take down the thumbnail host; today only C++ exceptions are caught.
 4. Start `viewer/` (Qt6 + TKOpenGl + AIS, XCAF tree in a QTreeView).
-5. Installer: per-user setup `.exe` on GitHub Releases, using the brand packet.
+5. Installer (owner wants this next; go-ahead to install Inno Setup and to publish was still pending on 2026-11-15): (a) switch the triplet to `x64-windows-static` so the DLL does not need the VC++ runtime on other PCs (rebuilds OCCT, ~50 min; set the MSVC runtime to static in CMake to match); (b) Inno Setup script doing what `scripts/install.ps1` does, per-user, branded wizard pages, detects STEP Explorer Preview and tells the user; (c) attach `sideSTEP-Setup-<version>.exe` to a GitHub Release, labelled preview. Unsigned for now.
+
+## Machine notes
+- sideSTEP 0.1.0 is installed per-user at `%LOCALAPPDATA%\Programs\sideSTEP` via `scripts\install.ps1` (listed in Installed apps).
+- This repo commits as "Adrian Samarra" with the samarrastudios GitHub no-reply address and pushes as `samarrastudios` (repo-local git config; the global identity on this machine is a work account and must not be used here).
+- If the repo folder is renamed or moved, delete `build/` and re-run `scriptsuild.ps1`: CMake caches absolute paths. OpenCASCADE is restored from the vcpkg binary cache in about a minute, not recompiled.
 
 ## Conventions
 - A failed thumbnail must fail quietly (return an error HRESULT); never show UI or crash the host.

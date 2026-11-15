@@ -16,7 +16,7 @@ Open source, for Windows. Created by Adrian Samarra.
 | STEP loading, assembly colors, tessellation (`core/`) | Working on Windows (MSVC 2022, OpenCASCADE 8.0.1) and on Linux (OpenCASCADE 7.6) |
 | Software thumbnail renderer (`core/renderer.cpp`) | Working |
 | Command-line tester (`cli/`) | Working |
-| Explorer thumbnail DLL (`shellext/`) | Working: built with MSVC, registered per-user, and rendering through Explorer's thumbnail host. **Loses to "STEP Explorer Preview" if that Store app is installed** (see Known limits) |
+| Explorer thumbnail DLL (`shellext/`) | Working: thumbnails confirmed in File Explorer on real assemblies. **Loses to "STEP Explorer Preview" if that Store app is installed** (see Known limits) |
 | Qt viewer (model tree, orbit, measure, explode) | Not started |
 | Installer / signing | Not started |
 

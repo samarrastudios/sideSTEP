@@ -19,13 +19,14 @@ Windows utility: STEP/STP files get real thumbnails in File Explorer, and (next)
 - Builds clean on Windows: Build Tools 2022 (MSVC 19.44), vcpkg baseline pinned in `vcpkg.json`, OpenCASCADE 8.0.1, triplet `x64-windows-static-md`. No source changes were needed for MSVC or OCCT 8. First build ~55 min (OCCT), later builds seconds.
 - `scripts\build.ps1`, `test.ps1`, `register.ps1` all run. Sample PNGs are correct. Thumbnail time: ~0.1 s per sample in-process, ~0.2 s through the shell.
 - The DLL is verified through the real shell pipeline (IShellItemImageFactory -> thumbnail dllhost) using `.stpnc` copies of the samples.
-- **Open problem on this machine:** the Store app "STEP Explorer Preview" (AelyoSoftworks.STEPExplorerPreview) is installed and its packaged thumbnail handler wins for `.step`/`.stp`/`.p21` (and it currently fails, so those files show no thumbnail). Our registry entries are correct and `AssocQueryString` resolves to our CLSID, but the shell still binds the packaged handler. Fix is to uninstall that app; not yet done (owner's call). Longer term, only a packaged handler of our own could compete on equal terms.
+- **Milestone 1 reached:** thumbnails confirmed in Explorer on real `.step`/`.stp` files (the owner's product assemblies and parts) and on the samples, served by the installed DLL.
+- Known conflict: when the Store app "STEP Explorer Preview" (AelyoSoftworks.STEPExplorerPreview) is installed, its packaged thumbnail handler wins for `.step`/`.stp`/`.p21` even though `AssocQueryString` resolves to our CLSID. It was installed here and blocked us until the owner uninstalled it. Other users will hit this; only a packaged handler of our own could compete on equal terms.
 - Fixed: host hung at process exit after a thumbnail (OCCT `OSD_ThreadPool` static destructor at DLL detach). `RenderStepThumbnail` now meshes single-threaded. The CLI still meshes in parallel via `LoadStepFile`.
 - Added: opt-in debug log (`HKCU\Software\sideSTEP` value `DebugLog` = file path), icon + version resource (`res/app.rc.in`).
 - Testing tip: Explorer caches thumbnails per file, including failures; copy the file to a new name to force a fresh request.
 
 ## Next steps
-1. Resolve the STEP Explorer Preview conflict, then confirm thumbnails for `samples\*.step` / `*.stp` in Explorer at Large icons.
+1. Measure thumbnail time on the owner's large real files (one is ~15 MB) and tune if slow.
 2. Performance: OCCT transfer dominates on large files. Ideas: skip shape healing params, cap by file size with a cheaper fallback, cache meshes on disk keyed by file hash. Not yet measured on Windows with a large assembly.
 3. Catch structured exceptions (access violations inside OCCT) so a bad file cannot take down the thumbnail host; today only C++ exceptions are caught.
 4. Start `viewer/` (Qt6 + TKOpenGl + AIS, XCAF tree in a QTreeView).

@@ -13,10 +13,10 @@ Open source, for Windows. Created by Adrian Samarra.
 
 | Piece | State |
 |---|---|
-| STEP loading, assembly colors, tessellation (`core/`) | Working, tested on Linux against OpenCASCADE 7.6; compile-checked against 8.0.1 headers |
+| STEP loading, assembly colors, tessellation (`core/`) | Working on Windows (MSVC 2022, OpenCASCADE 8.0.1) and on Linux (OpenCASCADE 7.6) |
 | Software thumbnail renderer (`core/renderer.cpp`) | Working |
 | Command-line tester (`cli/`) | Working |
-| Explorer thumbnail DLL (`shellext/`) | Written and compile-checked with MinGW; **not yet built with MSVC or run in Explorer** |
+| Explorer thumbnail DLL (`shellext/`) | Working: built with MSVC, registered per-user, and rendering through Explorer's thumbnail host. **Loses to "STEP Explorer Preview" if that Store app is installed** (see Known limits) |
 | Qt viewer (model tree, orbit, measure, explode) | Not started |
 | Installer / signing | Not started |
 
@@ -30,6 +30,8 @@ scripts\test.ps1       # renders samples\*.step to PNGs and opens the folder
 scripts\register.ps1   # turns on thumbnails in Explorer (per-user, no admin)
 scripts\unregister.ps1 # turns them off again
 ```
+
+Thumbnails not appearing? Set the string value `DebugLog` under `HKCU\Software\sideSTEP` to a file path; the DLL then appends one line per step (load, initialize, result code) to that file. If the file stays empty, Windows is not calling sideSTEP at all, which usually means another handler has priority.
 
 If PowerShell refuses to run scripts: `powershell -ExecutionPolicy Bypass -File scripts\build.ps1`.
 
@@ -51,6 +53,9 @@ If PowerShell refuses to run scripts: `powershell -ExecutionPolicy Bypass -File 
 ## Known limits
 
 - OpenCASCADE's STEP import is the slow part. A 15 MB, 211-part assembly took about 16 s on a 2-core test machine (12 s of it in OCCT's transfer step). Explorer renders thumbnails in the background and caches them, so this is a one-time cost per file, but it wants tuning.
+- If the Store app "STEP Explorer Preview" is installed, Windows uses its thumbnail handler for `.step`, `.stp` and `.p21` instead of sideSTEP's, because handlers from packaged apps take priority over classic registry ones. Uninstall that app to get sideSTEP thumbnails. `scriptsegister.ps1` warns when it finds it.
+- The sample files take about 0.1 s each to thumbnail (0.2 s through Explorer, including host start-up).
+- Thumbnails are meshed on one thread. OpenCASCADE's parallel mesher leaves a thread pool behind that hangs the host process at exit when used from a DLL.
 - Files over 400 MB are skipped.
 - No up-axis detection: Z is assumed up.
 - OpenCASCADE is LGPL 2.1 (with an exception). This build links it statically for a single self-contained DLL, which is fine for personal use; before distributing, either switch to the dynamic triplet (`x64-windows`) or make the object files available, per the LGPL.

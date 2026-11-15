@@ -33,6 +33,22 @@ static const ULONGLONG kMaxFileBytes = 400ull * 1024 * 1024;
 static HINSTANCE g_module = nullptr;
 static LONG g_refs = 0;
 
+// Opt-in diagnostics: set HKCU\Software\sideSTEP "DebugLog" (REG_SZ) to a file
+// path and each step is appended there. Off by default; never shows UI.
+static void DebugLog(const char* what, HRESULT hr = S_OK) {
+    wchar_t path[MAX_PATH] = {};
+    DWORD cb = sizeof(path) - sizeof(wchar_t);
+    if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\sideSTEP", L"DebugLog", RRF_RT_REG_SZ, nullptr, path, &cb) != ERROR_SUCCESS || !path[0])
+        return;
+    HANDLE f = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f == INVALID_HANDLE_VALUE) return;
+    char line[512];
+    const int n = wsprintfA(line, "pid=%lu tid=%lu %s hr=0x%08lX\r\n", GetCurrentProcessId(), GetCurrentThreadId(), what, (unsigned long)hr);
+    DWORD w = 0;
+    WriteFile(f, line, (DWORD)n, &w, nullptr);
+    CloseHandle(f);
+}
+
 class ThumbProvider final : public IInitializeWithStream, public IThumbnailProvider {
 public:
     ThumbProvider() { InterlockedIncrement(&g_refs); }
@@ -45,6 +61,11 @@ public:
         else if (riid == __uuidof(IThumbnailProvider))
             *ppv = static_cast<IThumbnailProvider*>(this);
         else {
+            wchar_t g[64] = {};
+            char a[96] = "QI unsupported ";
+            StringFromGUID2(riid, g, 64);
+            WideCharToMultiByte(CP_ACP, 0, g, -1, a + 15, 64, nullptr, nullptr);
+            DebugLog(a, E_NOINTERFACE);
             *ppv = nullptr;
             return E_NOINTERFACE;
         }
@@ -60,6 +81,7 @@ public:
 
     // IInitializeWithStream
     IFACEMETHODIMP Initialize(IStream* stream, DWORD) override {
+        DebugLog("Initialize");
         if (m_stream) return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
         if (!stream) return E_INVALIDARG;
         m_stream = stream;
@@ -69,6 +91,13 @@ public:
 
     // IThumbnailProvider
     IFACEMETHODIMP GetThumbnail(UINT cx, HBITMAP* phbmp, WTS_ALPHATYPE* alpha) override {
+        const HRESULT hr = GetThumbnailImpl(cx, phbmp, alpha);
+        DebugLog("GetThumbnail", hr);
+        return hr;
+    }
+
+private:
+    HRESULT GetThumbnailImpl(UINT cx, HBITMAP* phbmp, WTS_ALPHATYPE* alpha) {
         if (!phbmp || !alpha) return E_POINTER;
         *phbmp = nullptr;
         if (!m_stream) return E_UNEXPECTED;
@@ -231,6 +260,7 @@ STDAPI DllUnregisterServer() {
 STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void** ppv) {
     if (!ppv) return E_POINTER;
     *ppv = nullptr;
+    DebugLog("DllGetClassObject");
     if (clsid != CLSID_SideStepThumbs) return CLASS_E_CLASSNOTAVAILABLE;
     ClassFactory* f = new (std::nothrow) ClassFactory();
     if (!f) return E_OUTOFMEMORY;
@@ -245,6 +275,7 @@ BOOL APIENTRY DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
     if (reason == DLL_PROCESS_ATTACH) {
         g_module = inst;
         DisableThreadLibraryCalls(inst);
+        DebugLog("DLL_PROCESS_ATTACH");
     }
     return TRUE;
 }

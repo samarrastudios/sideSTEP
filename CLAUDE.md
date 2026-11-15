@@ -15,17 +15,21 @@ Windows utility: STEP/STP files get real thumbnails in File Explorer, and (next)
 - Credit line for the installer, About box and GitHub: "Created by Adrian Samarra. Open source, for Windows, released on GitHub."
 - The project name lives in `CMakeLists.txt` (`APP_NAME`, `APP_DISPLAY_NAME`).
 
-## State at handoff
-- `core/` + `cli/` built and tested on Linux with OCCT 7.6; `core/step_loader.cpp` syntax-checked against OCCT 8.0.1 headers (what vcpkg currently ships).
-- `shellext/thumbnail_provider.cpp` compiles under MinGW-w64 but has never been built with MSVC, linked against OCCT on Windows, or loaded by Explorer. Expect first-build fixes here.
-- `scripts/*.ps1` are untested on a real machine.
+## State (2026-11-15)
+- Builds clean on Windows: Build Tools 2022 (MSVC 19.44), vcpkg baseline pinned in `vcpkg.json`, OpenCASCADE 8.0.1, triplet `x64-windows-static-md`. No source changes were needed for MSVC or OCCT 8. First build ~55 min (OCCT), later builds seconds.
+- `scripts\build.ps1`, `test.ps1`, `register.ps1` all run. Sample PNGs are correct. Thumbnail time: ~0.1 s per sample in-process, ~0.2 s through the shell.
+- The DLL is verified through the real shell pipeline (IShellItemImageFactory -> thumbnail dllhost) using `.stpnc` copies of the samples.
+- **Open problem on this machine:** the Store app "STEP Explorer Preview" (AelyoSoftworks.STEPExplorerPreview) is installed and its packaged thumbnail handler wins for `.step`/`.stp`/`.p21` (and it currently fails, so those files show no thumbnail). Our registry entries are correct and `AssocQueryString` resolves to our CLSID, but the shell still binds the packaged handler. Fix is to uninstall that app; not yet done (owner's call). Longer term, only a packaged handler of our own could compete on equal terms.
+- Fixed: host hung at process exit after a thumbnail (OCCT `OSD_ThreadPool` static destructor at DLL detach). `RenderStepThumbnail` now meshes single-threaded. The CLI still meshes in parallel via `LoadStepFile`.
+- Added: opt-in debug log (`HKCU\Software\sideSTEP` value `DebugLog` = file path), icon + version resource (`res/app.rc.in`).
+- Testing tip: Explorer caches thumbnails per file, including failures; copy the file to a new name to force a fresh request.
 
 ## Next steps
-1. Run `scripts\build.ps1`; fix whatever MSVC / vcpkg / OCCT 8 linking turns up (toolkit names are handled in CMake via `if(TARGET TKDESTEP)`).
-2. `scripts\test.ps1`, check the PNGs look right.
-3. `scripts\register.ps1`, verify thumbnails in Explorer; debug by attaching to `dllhost.exe` if they don't appear.
-4. Performance: OCCT transfer dominates on large files. Ideas: skip shape healing params, cap by file size with a cheaper fallback, cache meshes on disk keyed by file hash.
-5. Then start `viewer/` (Qt6 + TKOpenGl + AIS, XCAF tree in a QTreeView).
+1. Resolve the STEP Explorer Preview conflict, then confirm thumbnails for `samples\*.step` / `*.stp` in Explorer at Large icons.
+2. Performance: OCCT transfer dominates on large files. Ideas: skip shape healing params, cap by file size with a cheaper fallback, cache meshes on disk keyed by file hash. Not yet measured on Windows with a large assembly.
+3. Catch structured exceptions (access violations inside OCCT) so a bad file cannot take down the thumbnail host; today only C++ exceptions are caught.
+4. Start `viewer/` (Qt6 + TKOpenGl + AIS, XCAF tree in a QTreeView).
+5. Installer: per-user setup `.exe` on GitHub Releases, using the brand packet.
 
 ## Conventions
 - A failed thumbnail must fail quietly (return an error HRESULT); never show UI or crash the host.

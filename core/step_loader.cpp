@@ -293,6 +293,12 @@ bool LoadStepFile(const std::string& path, const LoadOptions& opt, Mesh& out, st
 bool RenderStepThumbnail(const char* data, size_t size, int px, Image& out, std::string& error) {
     Mesh mesh;
     LoadOptions opt;
+    // This entry point is what in-process hosts (the Explorer thumbnail DLL)
+    // call. OCCT's parallel mesher starts a process-wide thread pool whose
+    // static destructor waits on its workers; inside a DLL that runs at
+    // process exit, after Windows has already killed those threads, and the
+    // host hangs. Meshing is a small share of the time, so stay single-threaded.
+    opt.parallel = false;
     if (!LoadStep(data, size, opt, mesh, error)) return false;
     RenderIso(mesh, px, out);
     return true;

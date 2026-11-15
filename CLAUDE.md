@@ -34,7 +34,7 @@ Windows utility: STEP/STP files get real thumbnails in File Explorer, and (next)
 ## Machine notes
 - sideSTEP 0.1.0 is installed per-user at `%LOCALAPPDATA%\Programs\sideSTEP` via `scripts\install.ps1` (listed in Installed apps).
 - This repo commits as "Adrian Samarra" with the samarrastudios GitHub no-reply address and pushes as `samarrastudios` (repo-local git config; the global identity on this machine is a work account and must not be used here).
-- If the repo folder is renamed or moved, delete `build/` and re-run `scriptsuild.ps1`: CMake caches absolute paths. OpenCASCADE is restored from the vcpkg binary cache in about a minute, not recompiled.
+- If the repo folder is renamed or moved, delete `build/` and re-run `scripts\build.ps1`: CMake caches absolute paths. OpenCASCADE is restored from the vcpkg binary cache in about a minute, not recompiled.
 
 ## Conventions
 - A failed thumbnail must fail quietly (return an error HRESULT); never show UI or crash the host.

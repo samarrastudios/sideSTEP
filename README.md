@@ -29,6 +29,8 @@ scripts\build.ps1      # first run builds OpenCASCADE: 20-60 minutes, once
 scripts\test.ps1       # renders samples\*.step to PNGs and opens the folder
 scripts\register.ps1   # turns on thumbnails in Explorer (per-user, no admin)
 scripts\unregister.ps1 # turns them off again
+scripts\install.ps1    # installs for this user under %LOCALAPPDATA%\Programs\sideSTEP, listed in Settings > Apps
+scripts\uninstall.ps1  # removes that install
 ```
 
 Thumbnails not appearing? Set the string value `DebugLog` under `HKCU\Software\sideSTEP` to a file path; the DLL then appends one line per step (load, initialize, result code) to that file. If the file stays empty, Windows is not calling sideSTEP at all, which usually means another handler has priority.

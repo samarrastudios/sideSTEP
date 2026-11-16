@@ -18,7 +18,7 @@ This file is public (the repo is on GitHub). Keep employer, client, product and 
 - Distribution: source on GitHub; a per-user Inno Setup program; no Store, no MSIX. Unsigned for now (SmartScreen warns).
 - The project name lives in `CMakeLists.txt` (`APP_NAME`, `APP_DISPLAY_NAME`); the version in `CMakeLists.txt`, `vcpkg.json` and the default in `installer/sideSTEP.iss`.
 
-## State (2026-11-16, version 0.2.0, pushed to `main`)
+## State (2026-11-16, version 0.2.0, pushed to `main`, released as the preview `v0.2.0`)
 - Builds clean: Build Tools 2022 (MSVC 19.44), OpenCASCADE 8.0.1, Qt 6.11.3. First build: OCCT ~55 min, Qt ~50 min (vcpkg builds a full host copy of Qt for its tools as well as the minimal target copy). Later builds take seconds to a couple of minutes.
 - **Thumbnails** (`shellext/thumbnail_provider.cpp`): confirmed in Explorer on the owner's real files.
 - **Preview pane** (`shellext/preview_handler.cpp`): drag spins, wheel zooms, right-drag pans, double-click resets, mark bottom-right. Loads on a worker thread. Verified through prevhost.exe.
@@ -55,7 +55,7 @@ Verified only by off-screen runs or not at all (the owner clicking through is th
 2. Load time on big files: cache meshes on disk keyed by file hash (would make previews and repeat opens near-instant); skip shape healing.
 3. Viewer: drag the section plane and box faces in the view; snapping to edge midpoints and circle centres; light/dark following the system theme; IGES; recent files; text in the 3D view.
 4. Preview pane: progress while loading; edge lines like the thumbnail.
-5. Release: a GitHub Release with the setup attached (owner's go-ahead needed; the binaries link OCCT and Qt statically under the LGPL, and the README points to the source and build scripts as the relinking materials); code signing; branded wizard images; detect STEP Explorer Preview in the installer.
+5. Releases: `v0.2.0` is published as a pre-release with the setup attached (the binaries link OCCT and Qt statically under the LGPL; the README and release notes point to the source and build scripts as the relinking materials). Each new release needs the owner's go-ahead. Still to do: code signing; branded wizard images; detect STEP Explorer Preview in the installer.
 6. Property columns in Explorer.
 
 ## Machine notes
@@ -64,6 +64,7 @@ Verified only by off-screen runs or not at all (the owner clicking through is th
 - sideSTEP is the default for .step. Other STEP apps here: FreeCAD 1.1 and F3D.
 - This repo commits as "Adrian Samarra" with the samarrastudios GitHub no-reply address and pushes as `samarrastudios` (repo-local git config; the global identity on this machine is a work account and must not be used here).
 - If the repo folder is renamed or moved, delete `build/` and re-run `scripts\build.ps1`: CMake caches absolute paths. OCCT and Qt come back from the vcpkg binary cache in a couple of minutes.
+- The `gh` tool's active account on this machine is the work account. For this repo run it with the personal account's token for that command only (`GH_TOKEN=$(gh auth token --user samarrastudios)`); do not `gh auth switch`.
 - Claude Code's safety check sometimes refuses to run `scripts\install.ps1` or the setup program because they start the autostart helper; when that happens, the owner runs it.
 
 ## Conventions

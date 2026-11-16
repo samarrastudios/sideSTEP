@@ -14,7 +14,7 @@ Open source, for Windows 10 and 11 (64-bit). Created by Adrian Samarra. This is 
 
 ## Install
 
-There is no published download yet. Build the setup program from source (see [Build](#build)); it produces `build\installer\sideSTEP-Setup-<version>.exe`.
+Download the setup program from the [latest release](https://github.com/samarrastudios/sideSTEP/releases) and run it. (Or build it from source, see [Build](#build).)
 
 The setup program:
 

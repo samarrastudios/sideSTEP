@@ -1,8 +1,12 @@
-// sideSTEP Explorer thumbnail provider.
+// sideSTEP Explorer thumbnail provider, plus the DLL's entry points and
+// registration for both shell handlers (thumbnails here, the preview pane in
+// preview_handler.cpp).
 //
 // Windows loads this DLL (in an isolated dllhost.exe, not in Explorer itself),
 // hands it the file as a stream, and asks for a bitmap. All the real work is
 // in the portable core (core/thumb_core.h).
+#include "shared.h"
+
 #include <windows.h>
 #include <new>
 #include <objbase.h>
@@ -30,12 +34,12 @@ static const wchar_t* const kExtensions[] = {L".step", L".stp", L".p21", L".stpn
 // Files larger than this are skipped (Explorer shows the normal icon).
 static const ULONGLONG kMaxFileBytes = 400ull * 1024 * 1024;
 
-static HINSTANCE g_module = nullptr;
-static LONG g_refs = 0;
+HINSTANCE g_module = nullptr;
+LONG g_refs = 0;
 
 // Opt-in diagnostics: set HKCU\Software\sideSTEP "DebugLog" (REG_SZ) to a file
 // path and each step is appended there. Off by default; never shows UI.
-static void DebugLog(const char* what, HRESULT hr = S_OK) {
+void DebugLog(const char* what, HRESULT hr) {
     wchar_t path[MAX_PATH] = {};
     DWORD cb = sizeof(path) - sizeof(wchar_t);
     if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\sideSTEP", L"DebugLog", RRF_RT_REG_SZ, nullptr, path, &cb) != ERROR_SUCCESS || !path[0])
@@ -47,6 +51,33 @@ static void DebugLog(const char* what, HRESULT hr = S_OK) {
     DWORD w = 0;
     WriteFile(f, line, (DWORD)n, &w, nullptr);
     CloseHandle(f);
+}
+
+// Structured exception handling cannot share a function with C++ objects that
+// need unwinding, hence these thin wrappers.
+static bool GuardedLoad(const char* data, size_t size, const stepcore::LoadOptions* opt, stepcore::Mesh* out, std::string* error) {
+    __try {
+        return stepcore::LoadStep(data, size, *opt, *out, *error);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+static bool GuardedThumbnail(const char* data, size_t size, int px, stepcore::Image* out, std::string* error) {
+    __try {
+        return stepcore::RenderStepThumbnail(data, size, px, *out, *error);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+}
+bool SafeLoadStep(const char* data, size_t size, const stepcore::LoadOptions& opt, stepcore::Mesh& out, std::string& error) {
+    const bool ok = GuardedLoad(data, size, &opt, &out, &error);
+    if (!ok && error.empty()) { error = "crashed while reading the file"; DebugLog("load: hardware exception", E_FAIL); }
+    return ok;
+}
+bool SafeRenderThumbnail(const char* data, size_t size, int px, stepcore::Image& out, std::string& error) {
+    const bool ok = GuardedThumbnail(data, size, px, &out, &error);
+    if (!ok && error.empty()) { error = "crashed while reading the file"; DebugLog("thumbnail: hardware exception", E_FAIL); }
+    return ok;
 }
 
 class ThumbProvider final : public IInitializeWithStream, public IThumbnailProvider {
@@ -130,7 +161,7 @@ private:
         std::string err;
         bool ok = false;
         try {
-            ok = stepcore::RenderStepThumbnail(data.data(), got, (int)cx, img, err);
+            ok = SafeRenderThumbnail(data.data(), got, (int)cx, img, err);
         } catch (...) {
             ok = false;
         }
@@ -163,6 +194,7 @@ private:
 
 class ClassFactory final : public IClassFactory {
 public:
+    explicit ClassFactory(bool preview) : m_preview(preview) {}
     IFACEMETHODIMP QueryInterface(REFIID riid, void** ppv) override {
         if (!ppv) return E_POINTER;
         if (riid == IID_IUnknown || riid == IID_IClassFactory) {
@@ -183,6 +215,7 @@ public:
         if (!ppv) return E_POINTER;
         *ppv = nullptr;
         if (outer) return CLASS_E_NOAGGREGATION;
+        if (m_preview) return CreatePreviewHandler(riid, ppv);
         ThumbProvider* p = new (std::nothrow) ThumbProvider();
         if (!p) return E_OUTOFMEMORY;
         const HRESULT hr = p->QueryInterface(riid, ppv);
@@ -198,6 +231,7 @@ public:
 private:
     ~ClassFactory() = default;
     LONG m_ref = 1;
+    const bool m_preview;
 };
 
 // ---- registration (per-user: HKCU, so no admin rights are needed) ----
@@ -211,14 +245,21 @@ static HRESULT SetStr(const std::wstring& key, const wchar_t* name, const std::w
     return HRESULT_FROM_WIN32(r);
 }
 
-static std::wstring ExtKey(const wchar_t* ext, bool systemAssoc) {
+static std::wstring ExtKey(const wchar_t* ext, bool systemAssoc, const wchar_t* handlerKey = kThumbHandlerKey) {
     std::wstring k = L"Software\\Classes\\";
     if (systemAssoc) k += L"SystemFileAssociations\\";
     k += ext;
     k += L"\\";
-    k += kThumbHandlerKey;
+    k += handlerKey;
     return k;
 }
+
+// Preview pane: shell category id for IPreviewHandler, the list Windows keeps
+// of installed preview handlers, and the 64-bit prevhost.exe surrogate.
+static const wchar_t kPreviewClsidStr[] = L"{8F1C0C46-5E0B-4D3A-9B56-6C7F3F2A51D4}";
+static const wchar_t kPreviewHandlerKey[] = L"ShellEx\\{8895b1c6-b41f-4c1c-a562-0d564250836f}";
+static const wchar_t kPreviewHandlersList[] = L"Software\\Microsoft\\Windows\\CurrentVersion\\PreviewHandlers";
+static const wchar_t kPrevhostAppId[] = L"{6d2b5079-2f0b-48dd-ab7f-97cec514d30b}";
 
 STDAPI DllRegisterServer() {
     wchar_t path[MAX_PATH];
@@ -232,6 +273,17 @@ STDAPI DllRegisterServer() {
         // which still applies when another CAD app owns the file type.
         if (SUCCEEDED(hr)) hr = SetStr(ExtKey(ext, false), nullptr, kClsidStr);
         if (SUCCEEDED(hr)) hr = SetStr(ExtKey(ext, true), nullptr, kClsidStr);
+    }
+    const std::wstring prevKey = std::wstring(L"Software\\Classes\\CLSID\\") + kPreviewClsidStr;
+    if (SUCCEEDED(hr)) hr = SetStr(prevKey, nullptr, APP_DISPLAY_NAME_W L" Preview Handler");
+    if (SUCCEEDED(hr)) hr = SetStr(prevKey, L"DisplayName", APP_DISPLAY_NAME_W L" preview");
+    if (SUCCEEDED(hr)) hr = SetStr(prevKey, L"AppID", kPrevhostAppId);
+    if (SUCCEEDED(hr)) hr = SetStr(prevKey + L"\\InprocServer32", nullptr, path);
+    if (SUCCEEDED(hr)) hr = SetStr(prevKey + L"\\InprocServer32", L"ThreadingModel", L"Apartment");
+    if (SUCCEEDED(hr)) hr = SetStr(kPreviewHandlersList, kPreviewClsidStr, APP_DISPLAY_NAME_W L" preview");
+    for (const wchar_t* ext : kExtensions) {
+        if (SUCCEEDED(hr)) hr = SetStr(ExtKey(ext, false, kPreviewHandlerKey), nullptr, kPreviewClsidStr);
+        if (SUCCEEDED(hr)) hr = SetStr(ExtKey(ext, true, kPreviewHandlerKey), nullptr, kPreviewClsidStr);
     }
     if (SUCCEEDED(hr)) SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     return hr;
@@ -253,6 +305,21 @@ STDAPI DllUnregisterServer() {
             }
         }
     }
+    const std::wstring prevKey = std::wstring(L"Software\\Classes\\CLSID\\") + kPreviewClsidStr;
+    RegDeleteTreeW(HKEY_CURRENT_USER, prevKey.c_str());
+    RegDeleteKeyW(HKEY_CURRENT_USER, prevKey.c_str());
+    RegDeleteKeyValueW(HKEY_CURRENT_USER, kPreviewHandlersList, kPreviewClsidStr);
+    for (const wchar_t* ext : kExtensions) {
+        for (int sys = 0; sys < 2; ++sys) {
+            const std::wstring k = ExtKey(ext, sys != 0, kPreviewHandlerKey);
+            wchar_t cur[64] = {};
+            DWORD cb = sizeof(cur);
+            if (RegGetValueW(HKEY_CURRENT_USER, k.c_str(), nullptr, RRF_RT_REG_SZ, nullptr, cur, &cb) == ERROR_SUCCESS &&
+                _wcsicmp(cur, kPreviewClsidStr) == 0) {
+                RegDeleteKeyW(HKEY_CURRENT_USER, k.c_str());
+            }
+        }
+    }
     SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
     return S_OK;
 }
@@ -261,8 +328,9 @@ STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void** ppv) {
     if (!ppv) return E_POINTER;
     *ppv = nullptr;
     DebugLog("DllGetClassObject");
-    if (clsid != CLSID_SideStepThumbs) return CLASS_E_CLASSNOTAVAILABLE;
-    ClassFactory* f = new (std::nothrow) ClassFactory();
+    const bool preview = clsid == CLSID_SideStepPreview;
+    if (!preview && clsid != CLSID_SideStepThumbs) return CLASS_E_CLASSNOTAVAILABLE;
+    ClassFactory* f = new (std::nothrow) ClassFactory(preview);
     if (!f) return E_OUTOFMEMORY;
     const HRESULT hr = f->QueryInterface(riid, ppv);
     f->Release();

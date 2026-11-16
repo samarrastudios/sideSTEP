@@ -4,6 +4,12 @@ $dest = Join-Path $env:LOCALAPPDATA 'Programs\sideSTEP'
 $dllName = 'sideSTEPThumbs.dll'
 $dll = Join-Path $dest $dllName
 if (Test-Path $dll) { Start-Process regsvr32.exe -ArgumentList '/u', '/s', "`"$dll`"" -Wait }
+$viewer = Join-Path $dest 'sideSTEP.exe'
+if (Test-Path $viewer) {
+    Get-Process sideSTEP -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $viewer } | Stop-Process -Force
+    Start-Process $viewer -ArgumentList '--unregister' -Wait
+}
+Remove-Item (Join-Path ([Environment]::GetFolderPath('Programs')) 'sideSTEP.lnk') -Force -ErrorAction SilentlyContinue
 Get-Process dllhost, prevhost -ErrorAction SilentlyContinue | ForEach-Object {
     try { if ($_.Modules.ModuleName -contains $dllName) { $_ | Stop-Process -Force } } catch {}
 }

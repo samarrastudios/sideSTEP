@@ -1,5 +1,5 @@
-# Builds sideSTEP (thumbnail DLL + command-line tester) from a normal PowerShell window.
-# First run downloads vcpkg and compiles OpenCASCADE, which takes a while (20-60 min).
+# Builds sideSTEP (viewer, Explorer DLL, command-line tester) from a normal PowerShell window.
+# First run downloads vcpkg and compiles OpenCASCADE and Qt, which takes a while (1-2 hours).
 # Later runs take seconds.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -45,4 +45,5 @@ if ($LASTEXITCODE) { Fail "Build failed (see output above)." }
 
 Write-Host "`nBuilt:" -ForegroundColor Green
 Get-ChildItem (Join-Path $build 'Release') -Include *.dll, *.exe -Recurse | ForEach-Object { Write-Host "  $($_.FullName)" }
-Write-Host "`nNext: scripts\test.ps1 (renders the sample files to PNG), then scripts\register.ps1"
+Write-Host "`nNext: scripts\test.ps1 (renders the sample files to PNG), then scripts\install.ps1"
+Write-Host "Try the viewer: build\Release\sideSTEP.exe samples\as1-oc-214.stp"

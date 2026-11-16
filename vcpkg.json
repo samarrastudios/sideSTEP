@@ -1,8 +1,13 @@
 {
   "name": "sidestep",
-  "version-string": "0.1.0",
+  "version-string": "0.2.0",
   "builtin-baseline": "8f363bdc11359ede4bc51e5eb32a2617538049c8",
   "dependencies": [
-    { "name": "opencascade", "default-features": false }
+    { "name": "opencascade", "default-features": false },
+    {
+      "name": "qtbase",
+      "default-features": false,
+      "features": [ "concurrent", "doubleconversion", "gui", "pcre2", "png", "thread", "widgets" ]
+    }
   ]
 }

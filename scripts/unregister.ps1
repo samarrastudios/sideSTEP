@@ -1,4 +1,4 @@
-# Turns STEP thumbnails back off and releases the DLL.
+# Turns STEP thumbnails and the preview pane back off and releases the DLL.
 $root = Split-Path $PSScriptRoot -Parent
 $dll = Join-Path $root 'build\Release\sideSTEPThumbs.dll'
 if (Test-Path $dll) { Start-Process regsvr32.exe -ArgumentList '/u', '/s', "`"$dll`"" -Wait }

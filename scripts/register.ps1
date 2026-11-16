@@ -1,4 +1,5 @@
-# Turns on STEP thumbnails in File Explorer for the current user (no admin needed).
+# Turns on STEP thumbnails and the preview pane in File Explorer for the current user,
+# straight from the build folder (no admin needed). For everyday use prefer install.ps1.
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 $dll = Join-Path $root 'build\Release\sideSTEPThumbs.dll'

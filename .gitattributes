@@ -1,0 +1,15 @@
+# Text files are stored with LF in the repository and checked out in the
+# platform's own line endings; PowerShell scripts and Windows resource and
+# installer scripts are always CRLF.
+* text=auto
+*.ps1 text eol=crlf
+*.iss text eol=crlf
+*.rc.in text eol=crlf
+*.def text eol=crlf
+
+# STEP samples are test data: leave their bytes alone.
+*.step -text
+*.stp -text
+
+*.png binary
+*.ico binary
